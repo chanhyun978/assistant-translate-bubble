@@ -154,6 +154,11 @@ public class MainActivity extends Activity {
         Button testButton = mainButton("번역 테스트", false, view -> AssistantTranslateController.requestTranslation(this));
         addTopMargin(content, testButton, 10);
 
+        TextView iconCredit = text(getString(R.string.icon_credit), 11, MUTED, false);
+        iconCredit.setGravity(Gravity.CENTER);
+        iconCredit.setAlpha(0.72f);
+        addTopMargin(content, iconCredit, 18);
+
         updateStatuses();
         scrollView.post(scrollView::requestApplyInsets);
         return scrollView;
