@@ -62,7 +62,7 @@ public class AssistantTranslateAccessibilityService extends AccessibilityService
 
     @Override
     public void onAccessibilityEvent(AccessibilityEvent event) {
-        if (!PermissionUtils.isAutomationActive(this)) {
+        if (!shouldHandleAutomation()) {
             stopInternalWork();
             return;
         }
@@ -82,6 +82,10 @@ public class AssistantTranslateAccessibilityService extends AccessibilityService
     }
 
     void openAssistantWithHomeLongPress() {
+        if (!shouldHandleAutomation()) {
+            return;
+        }
+
         Rect bounds = getDisplayBounds();
         float x = bounds.centerX();
         float y = bounds.bottom - PermissionUtils.dp(this, 24);
@@ -144,7 +148,7 @@ public class AssistantTranslateAccessibilityService extends AccessibilityService
     }
 
     private void scheduleClickLoop(long delayMs) {
-        if (!PermissionUtils.isAutomationActive(this)) {
+        if (!shouldHandleAutomation()) {
             return;
         }
         int requestId = AssistantTranslateController.currentRequestId();
@@ -160,7 +164,7 @@ public class AssistantTranslateAccessibilityService extends AccessibilityService
     }
 
     private void scheduleAssistantSettleCheck(long delayMs) {
-        if (!PermissionUtils.isAutomationActive(this)) {
+        if (!shouldHandleAutomation()) {
             return;
         }
         if (assistantSettleCheckScheduled) {
@@ -171,7 +175,7 @@ public class AssistantTranslateAccessibilityService extends AccessibilityService
     }
 
     private void scheduleActiveWindowCheck(long delayMs) {
-        if (!PermissionUtils.isAutomationActive(this)) {
+        if (!shouldHandleAutomation()) {
             return;
         }
         if (activeWindowCheckScheduled) {
@@ -183,7 +187,7 @@ public class AssistantTranslateAccessibilityService extends AccessibilityService
 
     private void checkActiveWindowStillVisible() {
         activeWindowCheckScheduled = false;
-        if (!PermissionUtils.isAutomationActive(this)) {
+        if (!shouldHandleAutomation()) {
             stopInternalWork();
             return;
         }
@@ -197,7 +201,7 @@ public class AssistantTranslateAccessibilityService extends AccessibilityService
 
     private void checkAssistantSettled() {
         assistantSettleCheckScheduled = false;
-        if (!PermissionUtils.isAutomationActive(this)) {
+        if (!shouldHandleAutomation()) {
             stopInternalWork();
             return;
         }
@@ -223,7 +227,7 @@ public class AssistantTranslateAccessibilityService extends AccessibilityService
 
     private void tryClickTranslateButton() {
         clickLoopScheduled = false;
-        if (!PermissionUtils.isAutomationActive(this)) {
+        if (!shouldHandleAutomation()) {
             stopInternalWork();
             return;
         }
@@ -262,6 +266,10 @@ public class AssistantTranslateAccessibilityService extends AccessibilityService
         clickAttempts = 0;
         assistantSettleChecks = 0;
         AssistantTranslateController.resetAll();
+    }
+
+    private boolean shouldHandleAutomation() {
+        return BubbleService.isRunning() && PermissionUtils.isAutomationActive(this);
     }
 
     private boolean clickTranslateButton() {

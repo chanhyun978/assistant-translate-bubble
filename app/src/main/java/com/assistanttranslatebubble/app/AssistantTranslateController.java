@@ -108,9 +108,14 @@ final class AssistantTranslateController {
     }
 
     private static void requestTranslation(Context context, boolean showFeedback) {
-        if (BubbleService.isRunning()) {
-            PermissionUtils.setAutomationActive(context, true);
+        if (!BubbleService.isRunning()) {
+            resetAll();
+            showFeedbackForCurrentRequest = showFeedback;
+            showToast(context, "버블을 먼저 시작해 주세요.", Toast.LENGTH_SHORT);
+            return;
         }
+        PermissionUtils.setAutomationActive(context, true);
+
         pendingRequest = true;
         translationActive = false;
         waitingForAssistantSettle = false;

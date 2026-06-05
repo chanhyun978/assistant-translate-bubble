@@ -43,11 +43,10 @@ public class MainActivity extends Activity {
     private TextView overlayStatus;
     private TextView accessibilityStatus;
     private TextView notificationStatus;
-    private TextView bubbleStatus;
-    private TextView automationStatus;
     private TextView modeStatus;
     private Switch modeSwitch;
     private Button startButton;
+    private Button stopButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,18 +105,12 @@ public class MainActivity extends Activity {
         overlayStatus = statusPill();
         accessibilityStatus = statusPill();
         notificationStatus = statusPill();
-        bubbleStatus = statusPill();
-        automationStatus = statusPill();
 
         statusPanel.addView(row("오버레이", "화면 위에 버블 표시", overlayStatus, smallButton("설정", view -> openOverlaySettings())));
         statusPanel.addView(separator());
         statusPanel.addView(row("접근성", "Assistant 번역 버튼 자동 선택", accessibilityStatus, smallButton("설정", view -> openAccessibilitySettings())));
         statusPanel.addView(separator());
         statusPanel.addView(row("알림", "버블 서비스 유지", notificationStatus, smallButton("요청", view -> requestNotificationPermission())));
-        statusPanel.addView(separator());
-        statusPanel.addView(row("버블", "화면 위 바로가기", bubbleStatus, smallButton("중지", view -> stopBubble())));
-        statusPanel.addView(separator());
-        statusPanel.addView(row("자동화", "버블이 켜졌을 때만 이벤트 처리", automationStatus, smallButton("종료", view -> shutdownAutomation())));
 
         addTopMargin(content, sectionLabel("동작"), 22);
         LinearLayout modePanel = panel();
@@ -155,6 +148,9 @@ public class MainActivity extends Activity {
         startButton = mainButton("버블 시작", true, view -> startBubble());
         addTopMargin(content, startButton, 24);
 
+        stopButton = mainButton("버블 중지", false, view -> stopBubble());
+        addTopMargin(content, stopButton, 10);
+
         Button testButton = mainButton("번역 테스트", false, view -> AssistantTranslateController.requestTranslation(this));
         addTopMargin(content, testButton, 10);
 
@@ -175,13 +171,10 @@ public class MainActivity extends Activity {
         boolean notificationsAllowed = PermissionUtils.canPostNotifications(this);
         boolean useHomeLongPress = PermissionUtils.useHomeLongPress(this);
         boolean bubbleRunning = BubbleService.isRunning();
-        boolean automationActive = PermissionUtils.isAutomationActive(this);
 
         setStatus(overlayStatus, overlayAllowed ? "허용됨" : "필요", overlayAllowed, false);
         setStatus(accessibilityStatus, accessibilityEnabled ? "켜짐" : "필요", accessibilityEnabled, false);
         setStatus(notificationStatus, notificationsAllowed ? "허용됨" : "필요", notificationsAllowed, false);
-        setStatus(bubbleStatus, bubbleRunning ? "실행 중" : "꺼짐", bubbleRunning, true);
-        setStatus(automationStatus, automationActive ? "켜짐" : "꺼짐", automationActive, true);
 
         modeSwitch.setOnCheckedChangeListener(null);
         modeSwitch.setChecked(useHomeLongPress);
@@ -190,8 +183,10 @@ public class MainActivity extends Activity {
                 ? "갤럭시에서 안정적인 실행 방식"
                 : "Assistant 실행 요청 방식");
 
-        startButton.setEnabled(overlayAllowed);
-        startButton.setAlpha(overlayAllowed ? 1f : 0.48f);
+        startButton.setEnabled(overlayAllowed && !bubbleRunning);
+        startButton.setAlpha(overlayAllowed && !bubbleRunning ? 1f : 0.48f);
+        stopButton.setEnabled(bubbleRunning || PermissionUtils.isAutomationActive(this));
+        stopButton.setAlpha(stopButton.isEnabled() ? 1f : 0.48f);
     }
 
     private void startBubble() {
