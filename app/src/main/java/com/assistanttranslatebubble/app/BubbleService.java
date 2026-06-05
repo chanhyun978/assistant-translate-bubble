@@ -187,6 +187,9 @@ public class BubbleService extends Service {
                 handler.removeCallbacks(longPressRunnable);
                 if (dragged) {
                     boolean shouldDismiss = event.getActionMasked() == MotionEvent.ACTION_UP && isInDismissArea();
+                    if (shouldDismiss) {
+                        triggerDismissHaptic(view);
+                    }
                     hideDismissTarget();
                     if (shouldDismiss) {
                         stopSelf();
@@ -200,6 +203,12 @@ public class BubbleService extends Service {
 
             default:
                 return true;
+        }
+    }
+
+    private void triggerDismissHaptic(View view) {
+        if (view != null) {
+            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
         }
     }
 
