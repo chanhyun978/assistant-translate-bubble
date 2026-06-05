@@ -170,7 +170,7 @@ public class MainActivity extends Activity {
         boolean accessibilityEnabled = PermissionUtils.isAccessibilityEnabled(this);
         boolean notificationsAllowed = PermissionUtils.canPostNotifications(this);
         boolean useHomeLongPress = PermissionUtils.useHomeLongPress(this);
-        boolean bubbleRunning = BubbleService.isRunning();
+        boolean bubbleEnabled = PermissionUtils.isAutomationActive(this);
 
         setStatus(overlayStatus, overlayAllowed ? "허용됨" : "필요", overlayAllowed, false);
         setStatus(accessibilityStatus, accessibilityEnabled ? "켜짐" : "필요", accessibilityEnabled, false);
@@ -183,9 +183,9 @@ public class MainActivity extends Activity {
                 ? "갤럭시에서 안정적인 실행 방식"
                 : "Assistant 실행 요청 방식");
 
-        startButton.setEnabled(overlayAllowed && !bubbleRunning);
-        startButton.setAlpha(overlayAllowed && !bubbleRunning ? 1f : 0.48f);
-        stopButton.setEnabled(bubbleRunning || PermissionUtils.isAutomationActive(this));
+        startButton.setEnabled(overlayAllowed && !bubbleEnabled);
+        startButton.setAlpha(overlayAllowed && !bubbleEnabled ? 1f : 0.48f);
+        stopButton.setEnabled(bubbleEnabled);
         stopButton.setAlpha(stopButton.isEnabled() ? 1f : 0.48f);
     }
 
