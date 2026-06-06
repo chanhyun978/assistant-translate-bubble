@@ -30,6 +30,7 @@ public class BubbleService extends Service {
     private static final String PREF_BUBBLE_Y = "bubble_y";
     private static final long SCREENSHOT_CAPTURE_DELAY_MS = 220L;
     private static final long SCREENSHOT_RESTORE_DELAY_MS = 1200L;
+    private static final int MODE_SWITCH_DISTANCE_DP = 34;
 
     private static volatile boolean running;
     private static volatile BubbleService activeService;
@@ -50,6 +51,7 @@ public class BubbleService extends Service {
     private boolean dragged;
     private boolean draggingOverDismissTarget;
     private boolean longPressTriggered;
+    private String longPressSelectedAction;
 
     static boolean isRunning() {
         return running;
@@ -164,12 +166,17 @@ public class BubbleService extends Service {
                 dragged = false;
                 draggingOverDismissTarget = false;
                 longPressTriggered = false;
+                longPressSelectedAction = null;
                 handler.postDelayed(longPressRunnable, ViewConfiguration.getLongPressTimeout());
                 return true;
 
             case MotionEvent.ACTION_MOVE:
                 float deltaX = event.getRawX() - downRawX;
                 float deltaY = event.getRawY() - downRawY;
+                if (longPressTriggered) {
+                    handleLongPressModeDrag(deltaY);
+                    return true;
+                }
                 if (!dragged && Math.hypot(deltaX, deltaY) > touchSlop) {
                     dragged = true;
                     handler.removeCallbacks(longPressRunnable);
@@ -221,7 +228,27 @@ public class BubbleService extends Service {
         longPressTriggered = true;
         bubbleView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
         animateBubblePress();
-        openSettings();
+    }
+
+    private void handleLongPressModeDrag(float deltaY) {
+        int threshold = PermissionUtils.dp(this, MODE_SWITCH_DISTANCE_DP);
+        if (deltaY <= -threshold) {
+            selectBubbleActionFromGesture(PermissionUtils.BUBBLE_ACTION_TRANSLATE);
+        } else if (deltaY >= threshold) {
+            selectBubbleActionFromGesture(PermissionUtils.BUBBLE_ACTION_SCREENSHOT);
+        }
+    }
+
+    private void selectBubbleActionFromGesture(String action) {
+        if (action.equals(longPressSelectedAction)) {
+            return;
+        }
+        longPressSelectedAction = action;
+        PermissionUtils.setBubbleAction(this, action);
+        if (bubbleView != null) {
+            bubbleView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+            animateBubblePress();
+        }
     }
 
     private void triggerTapAction() {
@@ -434,12 +461,6 @@ public class BubbleService extends Service {
         } catch (IllegalArgumentException ignored) {
         }
         bubbleView = null;
-    }
-
-    private void openSettings() {
-        Intent intent = new Intent(this, MainActivity.class)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        startActivity(intent);
     }
 
     private void startForegroundServiceNotification() {
