@@ -97,7 +97,7 @@ public class MainActivity extends Activity {
                 ScrollView.LayoutParams.WRAP_CONTENT
         ));
 
-        TextView title = text("번역 버블", 30, TEXT, true);
+        TextView title = text("화면 액션 버블", 30, TEXT, true);
         content.addView(title);
 
         TextView subtitle = text("탭하면 선택한 동작, 길게 누른 뒤 위/아래로 모드 변경", 15, MUTED, false);
@@ -343,7 +343,7 @@ public class MainActivity extends Activity {
     }
 
     private void openAccessibilitySettings() {
-        Toast.makeText(this, "목록에서 '번역 버블 자동 실행'을 켜 주세요.", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "목록에서 '화면 액션 버블 자동 실행'을 켜 주세요.", Toast.LENGTH_LONG).show();
         startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
     }
 

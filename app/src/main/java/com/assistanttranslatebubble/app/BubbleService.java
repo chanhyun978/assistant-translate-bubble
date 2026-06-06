@@ -27,7 +27,7 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 public class BubbleService extends Service {
-    private static final String CHANNEL_ID = "translate_bubble_status";
+    private static final String CHANNEL_ID = "screen_action_bubble_status";
     private static final int NOTIFICATION_ID = 1001;
     private static final String PREF_BUBBLE_X = "bubble_x";
     private static final String PREF_BUBBLE_Y = "bubble_y";
@@ -154,7 +154,7 @@ public class BubbleService extends Service {
 
     private View createBubbleView() {
         FrameLayout bubble = new GlassBubbleView(this);
-        bubble.setContentDescription("번역 버블");
+        bubble.setContentDescription("화면 액션 버블");
         bubble.setClickable(true);
         bubble.setFocusable(false);
         bubble.setOnTouchListener(this::handleBubbleTouch);
@@ -531,7 +531,7 @@ public class BubbleService extends Service {
 
         return new Notification.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("번역 버블 실행 중")
+                .setContentTitle("화면 액션 버블 실행 중")
                 .setContentText("버블을 탭하면 선택한 동작을 실행합니다.")
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
@@ -542,7 +542,7 @@ public class BubbleService extends Service {
     private void createNotificationChannel() {
         NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
-                "번역 버블",
+                "화면 액션 버블",
                 NotificationManager.IMPORTANCE_LOW
         );
         NotificationManager manager = getSystemService(NotificationManager.class);
