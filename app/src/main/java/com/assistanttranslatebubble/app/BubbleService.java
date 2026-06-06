@@ -15,6 +15,8 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.MotionEvent;
@@ -22,14 +24,17 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
+import android.widget.Toast;
 
 public class BubbleService extends Service {
     private static final String CHANNEL_ID = "translate_bubble_status";
     private static final int NOTIFICATION_ID = 1001;
     private static final String PREF_BUBBLE_X = "bubble_x";
     private static final String PREF_BUBBLE_Y = "bubble_y";
-    private static final long SCREENSHOT_CAPTURE_DELAY_MS = 220L;
-    private static final long SCREENSHOT_RESTORE_DELAY_MS = 1200L;
+    private static final long SCREENSHOT_CAPTURE_DELAY_MS = 80L;
+    private static final long SCREENSHOT_RESTORE_DELAY_MS = 700L;
+    private static final long SCREENSHOT_HAPTIC_MS = 42L;
+    private static final int SCREENSHOT_HAPTIC_AMPLITUDE = 245;
     private static final int MODE_SWITCH_DISTANCE_DP = 34;
 
     private static volatile boolean running;
@@ -244,11 +249,15 @@ public class BubbleService extends Service {
             return;
         }
         longPressSelectedAction = action;
+        if (action.equals(PermissionUtils.bubbleAction(this))) {
+            return;
+        }
         PermissionUtils.setBubbleAction(this, action);
         if (bubbleView != null) {
             bubbleView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
             animateBubblePress();
         }
+        showModeChangedToast(action);
     }
 
     private void triggerTapAction() {
@@ -273,8 +282,8 @@ public class BubbleService extends Service {
         }
 
         View capturedBubble = bubbleView;
-        capturedBubble.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
-        removeBubble();
+        triggerScreenshotHaptic(capturedBubble);
+        removeBubbleImmediately();
         handler.postDelayed(() -> {
             boolean requested = service.takeSystemScreenshot();
             handler.postDelayed(() -> restoreBubbleAfterScreenshot(capturedBubble),
@@ -293,6 +302,29 @@ public class BubbleService extends Service {
             bubbleView = null;
             stopSelf();
         }
+    }
+
+    private void triggerScreenshotHaptic(View view) {
+        if (view != null) {
+            view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+        }
+
+        Vibrator vibrator = getSystemService(Vibrator.class);
+        if (vibrator == null || !vibrator.hasVibrator()) {
+            return;
+        }
+
+        vibrator.vibrate(VibrationEffect.createOneShot(
+                SCREENSHOT_HAPTIC_MS,
+                SCREENSHOT_HAPTIC_AMPLITUDE
+        ));
+    }
+
+    private void showModeChangedToast(String action) {
+        String label = PermissionUtils.BUBBLE_ACTION_SCREENSHOT.equals(action)
+                ? "스크린샷"
+                : "번역";
+        Toast.makeText(this, label + " 모드로 변경됨", Toast.LENGTH_SHORT).show();
     }
 
     private void animateBubblePress() {
@@ -458,6 +490,17 @@ public class BubbleService extends Service {
         }
         try {
             windowManager.removeView(bubbleView);
+        } catch (IllegalArgumentException ignored) {
+        }
+        bubbleView = null;
+    }
+
+    private void removeBubbleImmediately() {
+        if (windowManager == null || bubbleView == null) {
+            return;
+        }
+        try {
+            windowManager.removeViewImmediate(bubbleView);
         } catch (IllegalArgumentException ignored) {
         }
         bubbleView = null;
