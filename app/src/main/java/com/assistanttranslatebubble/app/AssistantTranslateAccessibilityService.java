@@ -122,6 +122,13 @@ public class AssistantTranslateAccessibilityService extends AccessibilityService
         return performGlobalAction(GLOBAL_ACTION_BACK);
     }
 
+    boolean takeSystemScreenshot() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) {
+            return false;
+        }
+        return performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT);
+    }
+
     void watchAssistantCloseAfterBack() {
         waitingForAssistantSettle = true;
         assistantSettleChecks = 0;

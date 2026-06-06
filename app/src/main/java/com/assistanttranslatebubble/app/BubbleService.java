@@ -28,6 +28,8 @@ public class BubbleService extends Service {
     private static final int NOTIFICATION_ID = 1001;
     private static final String PREF_BUBBLE_X = "bubble_x";
     private static final String PREF_BUBBLE_Y = "bubble_y";
+    private static final long SCREENSHOT_CAPTURE_DELAY_MS = 220L;
+    private static final long SCREENSHOT_RESTORE_DELAY_MS = 1200L;
 
     private static volatile boolean running;
     private static volatile BubbleService activeService;
@@ -226,9 +228,43 @@ public class BubbleService extends Service {
         if (bubbleView == null) {
             return;
         }
+        if (PermissionUtils.useScreenshotAction(this)) {
+            triggerScreenshotAction();
+            return;
+        }
         if (AssistantTranslateController.handleBubbleTap(this)) {
             bubbleView.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
             animateBubblePress();
+        }
+    }
+
+    private void triggerScreenshotAction() {
+        AssistantTranslateAccessibilityService service =
+                AssistantTranslateAccessibilityService.getConnectedService();
+        if (service == null || bubbleView == null) {
+            return;
+        }
+
+        View capturedBubble = bubbleView;
+        capturedBubble.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS);
+        removeBubble();
+        handler.postDelayed(() -> {
+            boolean requested = service.takeSystemScreenshot();
+            handler.postDelayed(() -> restoreBubbleAfterScreenshot(capturedBubble),
+                    requested ? SCREENSHOT_RESTORE_DELAY_MS : 160L);
+        }, SCREENSHOT_CAPTURE_DELAY_MS);
+    }
+
+    private void restoreBubbleAfterScreenshot(View capturedBubble) {
+        if (windowManager == null || capturedBubble == null || bubbleView != null) {
+            return;
+        }
+        try {
+            windowManager.addView(capturedBubble, bubbleParams);
+            bubbleView = capturedBubble;
+        } catch (RuntimeException error) {
+            bubbleView = null;
+            stopSelf();
         }
     }
 
@@ -432,7 +468,7 @@ public class BubbleService extends Service {
         return new Notification.Builder(this, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle("번역 버블 실행 중")
-                .setContentText("버블을 탭하면 Assistant 번역을 실행합니다.")
+                .setContentText("버블을 탭하면 선택한 동작을 실행합니다.")
                 .setContentIntent(pendingIntent)
                 .setOngoing(true)
                 .setCategory(Notification.CATEGORY_SERVICE)

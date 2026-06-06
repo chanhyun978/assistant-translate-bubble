@@ -43,10 +43,14 @@ public class MainActivity extends Activity {
     private TextView overlayStatus;
     private TextView accessibilityStatus;
     private TextView notificationStatus;
+    private TextView actionStatus;
+    private Button translateActionButton;
+    private Button screenshotActionButton;
     private TextView modeStatus;
     private Switch modeSwitch;
     private Button startButton;
     private Button stopButton;
+    private Button testButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -94,7 +98,7 @@ public class MainActivity extends Activity {
         TextView title = text("번역 버블", 30, TEXT, true);
         content.addView(title);
 
-        TextView subtitle = text("탭하면 번역, 길게 누르면 설정", 15, MUTED, false);
+        TextView subtitle = text("탭하면 선택한 동작, 길게 누르면 설정", 15, MUTED, false);
         subtitle.setPadding(0, PermissionUtils.dp(this, 6), 0, PermissionUtils.dp(this, 24));
         content.addView(subtitle);
 
@@ -108,11 +112,50 @@ public class MainActivity extends Activity {
 
         statusPanel.addView(row("오버레이", "화면 위에 버블 표시", overlayStatus, smallButton("설정", view -> openOverlaySettings())));
         statusPanel.addView(separator());
-        statusPanel.addView(row("접근성", "Assistant 번역 버튼 자동 선택", accessibilityStatus, smallButton("설정", view -> openAccessibilitySettings())));
+        statusPanel.addView(row("접근성", "번역 자동 선택 및 스크린샷 실행", accessibilityStatus, smallButton("설정", view -> openAccessibilitySettings())));
         statusPanel.addView(separator());
         statusPanel.addView(row("알림", "버블 서비스 유지", notificationStatus, smallButton("요청", view -> requestNotificationPermission())));
 
-        addTopMargin(content, sectionLabel("동작"), 22);
+        addTopMargin(content, sectionLabel("버블 동작"), 22);
+        LinearLayout actionPanel = panel();
+        actionPanel.setPadding(
+                PermissionUtils.dp(this, 16),
+                PermissionUtils.dp(this, 14),
+                PermissionUtils.dp(this, 16),
+                PermissionUtils.dp(this, 14)
+        );
+        content.addView(actionPanel);
+
+        LinearLayout actionTextGroup = new LinearLayout(this);
+        actionTextGroup.setOrientation(LinearLayout.VERTICAL);
+        actionPanel.addView(actionTextGroup);
+
+        actionTextGroup.addView(text("탭 동작", 16, TEXT, true));
+        actionStatus = text("", 13, MUTED, false);
+        actionStatus.setPadding(0, PermissionUtils.dp(this, 4), 0, 0);
+        actionTextGroup.addView(actionStatus);
+
+        LinearLayout actionButtons = new LinearLayout(this);
+        actionButtons.setOrientation(LinearLayout.HORIZONTAL);
+        actionButtons.setPadding(0, PermissionUtils.dp(this, 12), 0, 0);
+        actionPanel.addView(actionButtons);
+
+        translateActionButton = optionButton("번역", view -> onBubbleActionChanged(PermissionUtils.BUBBLE_ACTION_TRANSLATE));
+        screenshotActionButton = optionButton("스크린샷", view -> onBubbleActionChanged(PermissionUtils.BUBBLE_ACTION_SCREENSHOT));
+        actionButtons.addView(translateActionButton, new LinearLayout.LayoutParams(
+                0,
+                PermissionUtils.dp(this, 42),
+                1f
+        ));
+        LinearLayout.LayoutParams screenshotParams = new LinearLayout.LayoutParams(
+                0,
+                PermissionUtils.dp(this, 42),
+                1f
+        );
+        screenshotParams.leftMargin = PermissionUtils.dp(this, 8);
+        actionButtons.addView(screenshotActionButton, screenshotParams);
+
+        addTopMargin(content, sectionLabel("번역 방식"), 18);
         LinearLayout modePanel = panel();
         modePanel.setPadding(
                 PermissionUtils.dp(this, 16),
@@ -151,7 +194,7 @@ public class MainActivity extends Activity {
         stopButton = mainButton("버블 중지", false, view -> stopBubble());
         addTopMargin(content, stopButton, 10);
 
-        Button testButton = mainButton("번역 테스트", false, view -> AssistantTranslateController.requestTranslation(this));
+        testButton = mainButton("번역 테스트", false, view -> runActionTest());
         addTopMargin(content, testButton, 10);
 
         TextView iconCredit = text(getString(R.string.icon_credit), 11, MUTED, false);
@@ -170,28 +213,55 @@ public class MainActivity extends Activity {
         updateStatuses();
     }
 
+    private void onBubbleActionChanged(String action) {
+        PermissionUtils.setBubbleAction(this, action);
+        updateStatuses();
+    }
+
     private void updateStatuses() {
         boolean overlayAllowed = PermissionUtils.canDrawOverlays(this);
         boolean accessibilityEnabled = PermissionUtils.isAccessibilityEnabled(this);
         boolean notificationsAllowed = PermissionUtils.canPostNotifications(this);
         boolean useHomeLongPress = PermissionUtils.useHomeLongPress(this);
         boolean bubbleEnabled = PermissionUtils.isAutomationActive(this);
+        boolean screenshotAction = PermissionUtils.useScreenshotAction(this);
 
         setStatus(overlayStatus, overlayAllowed ? "허용됨" : "필요", overlayAllowed, false);
         setStatus(accessibilityStatus, accessibilityEnabled ? "켜짐" : "필요", accessibilityEnabled, false);
         setStatus(notificationStatus, notificationsAllowed ? "허용됨" : "필요", notificationsAllowed, false);
 
+        actionStatus.setText(screenshotAction
+                ? "버블을 숨긴 뒤 시스템 스크린샷 실행"
+                : "Assistant 번역 버튼 자동 실행");
+        styleOptionButton(translateActionButton, !screenshotAction);
+        styleOptionButton(screenshotActionButton, screenshotAction);
+
         modeSwitch.setOnCheckedChangeListener(null);
         modeSwitch.setChecked(useHomeLongPress);
         modeSwitch.setOnCheckedChangeListener(this::onModeChanged);
-        modeStatus.setText(useHomeLongPress
-                ? "갤럭시에서 안정적인 실행 방식"
-                : "Assistant 실행 요청 방식");
+        modeSwitch.setEnabled(!screenshotAction);
+        modeSwitch.setAlpha(screenshotAction ? 0.45f : 1f);
+        modeStatus.setText(screenshotAction
+                ? "스크린샷 모드에서는 사용하지 않음"
+                : (useHomeLongPress
+                        ? "갤럭시에서 안정적인 실행 방식"
+                        : "Assistant 실행 요청 방식"));
 
         startButton.setEnabled(overlayAllowed && !bubbleEnabled);
         startButton.setAlpha(overlayAllowed && !bubbleEnabled ? 1f : 0.48f);
         stopButton.setEnabled(bubbleEnabled);
         stopButton.setAlpha(stopButton.isEnabled() ? 1f : 0.48f);
+        testButton.setText(screenshotAction ? "스크린샷 테스트" : "번역 테스트");
+    }
+
+    private void runActionTest() {
+        if (PermissionUtils.useScreenshotAction(this)) {
+            if (!ScreenshotController.requestImmediateScreenshot()) {
+                Toast.makeText(this, "접근성 서비스를 켜 주세요.", Toast.LENGTH_LONG).show();
+            }
+            return;
+        }
+        AssistantTranslateController.requestTranslation(this);
     }
 
     private void startBubble() {
@@ -374,6 +444,19 @@ public class MainActivity extends Activity {
         button.setTextSize(13);
         button.setBackground(rounded(0xFFF1F3F6, 8));
         return button;
+    }
+
+    private Button optionButton(String label, View.OnClickListener listener) {
+        Button button = baseButton(label, listener);
+        button.setTextSize(14);
+        button.setMinHeight(PermissionUtils.dp(this, 42));
+        return button;
+    }
+
+    private void styleOptionButton(Button button, boolean selected) {
+        button.setTextColor(selected ? Color.WHITE : TEXT);
+        button.setBackground(rounded(selected ? BLUE : 0xFFF1F3F6, 8));
+        button.setElevation(selected ? PermissionUtils.dp(this, 1) : 0);
     }
 
     private Button mainButton(String label, boolean primary, View.OnClickListener listener) {

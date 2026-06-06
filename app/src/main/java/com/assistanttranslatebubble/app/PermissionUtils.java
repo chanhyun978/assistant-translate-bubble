@@ -10,9 +10,13 @@ import android.provider.Settings;
 import android.text.TextUtils;
 
 final class PermissionUtils {
+    static final String BUBBLE_ACTION_TRANSLATE = "translate";
+    static final String BUBBLE_ACTION_SCREENSHOT = "screenshot";
+
     private static final String PREFS_NAME = "translate_bubble";
     private static final String PREF_USE_HOME_LONG_PRESS = "use_home_long_press";
     private static final String PREF_AUTOMATION_ACTIVE = "automation_active";
+    private static final String PREF_BUBBLE_ACTION = "bubble_action";
 
     private PermissionUtils() {
     }
@@ -67,6 +71,25 @@ final class PermissionUtils {
 
     static void setAutomationActive(Context context, boolean enabled) {
         prefs(context).edit().putBoolean(PREF_AUTOMATION_ACTIVE, enabled).apply();
+    }
+
+    static String bubbleAction(Context context) {
+        String action = prefs(context).getString(PREF_BUBBLE_ACTION, BUBBLE_ACTION_TRANSLATE);
+        if (BUBBLE_ACTION_SCREENSHOT.equals(action)) {
+            return BUBBLE_ACTION_SCREENSHOT;
+        }
+        return BUBBLE_ACTION_TRANSLATE;
+    }
+
+    static boolean useScreenshotAction(Context context) {
+        return BUBBLE_ACTION_SCREENSHOT.equals(bubbleAction(context));
+    }
+
+    static void setBubbleAction(Context context, String action) {
+        String value = BUBBLE_ACTION_SCREENSHOT.equals(action)
+                ? BUBBLE_ACTION_SCREENSHOT
+                : BUBBLE_ACTION_TRANSLATE;
+        prefs(context).edit().putString(PREF_BUBBLE_ACTION, value).apply();
     }
 
     static int dp(Context context, float value) {
