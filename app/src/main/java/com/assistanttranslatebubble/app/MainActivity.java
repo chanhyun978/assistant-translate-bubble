@@ -51,6 +51,8 @@ public class MainActivity extends Activity {
     private Button startButton;
     private Button stopButton;
     private Button testButton;
+    private boolean bubbleStartRequested;
+    private boolean bubbleStopRequested;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,7 +100,7 @@ public class MainActivity extends Activity {
         TextView title = text("번역 버블", 30, TEXT, true);
         content.addView(title);
 
-        TextView subtitle = text("탭하면 선택한 동작, 길게 누르면 설정", 15, MUTED, false);
+        TextView subtitle = text("탭하면 선택한 동작, 길게 누른 뒤 위/아래로 모드 변경", 15, MUTED, false);
         subtitle.setPadding(0, PermissionUtils.dp(this, 6), 0, PermissionUtils.dp(this, 24));
         content.addView(subtitle);
 
@@ -223,8 +225,27 @@ public class MainActivity extends Activity {
         boolean accessibilityEnabled = PermissionUtils.isAccessibilityEnabled(this);
         boolean notificationsAllowed = PermissionUtils.canPostNotifications(this);
         boolean useHomeLongPress = PermissionUtils.useHomeLongPress(this);
-        boolean bubbleEnabled = PermissionUtils.isAutomationActive(this);
+        boolean bubbleRunning = BubbleService.isRunning();
+        boolean automationActive = PermissionUtils.isAutomationActive(this);
         boolean screenshotAction = PermissionUtils.useScreenshotAction(this);
+
+        if (bubbleRunning && !bubbleStopRequested && !automationActive) {
+            PermissionUtils.setAutomationActive(this, true);
+            automationActive = true;
+        }
+        if (!bubbleRunning && automationActive && !bubbleStartRequested) {
+            PermissionUtils.setAutomationActive(this, false);
+            automationActive = false;
+        }
+        if (bubbleRunning && automationActive) {
+            bubbleStartRequested = false;
+        }
+        if (!bubbleRunning && !automationActive) {
+            bubbleStopRequested = false;
+        }
+        boolean bubbleEnabled = automationActive
+                && (bubbleRunning || bubbleStartRequested)
+                && !bubbleStopRequested;
 
         setStatus(overlayStatus, overlayAllowed ? "허용됨" : "필요", overlayAllowed, false);
         setStatus(accessibilityStatus, accessibilityEnabled ? "켜짐" : "필요", accessibilityEnabled, false);
@@ -276,6 +297,8 @@ public class MainActivity extends Activity {
 
         Intent intent = new Intent(this, BubbleService.class);
         try {
+            bubbleStartRequested = true;
+            bubbleStopRequested = false;
             PermissionUtils.setAutomationActive(this, true);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(intent);
@@ -283,7 +306,11 @@ public class MainActivity extends Activity {
                 startService(intent);
             }
             updateStatuses();
+            startButton.postDelayed(this::updateStatuses, 500L);
+            startButton.postDelayed(this::updateStatuses, 1500L);
         } catch (RuntimeException error) {
+            bubbleStartRequested = false;
+            bubbleStopRequested = false;
             PermissionUtils.setAutomationActive(this, false);
             AssistantTranslateController.resetAll();
             AssistantTranslateAccessibilityService.stopConnectedWork();
@@ -296,11 +323,15 @@ public class MainActivity extends Activity {
     }
 
     private void shutdownAutomation() {
+        bubbleStartRequested = false;
+        bubbleStopRequested = true;
         stopService(new Intent(this, BubbleService.class));
         PermissionUtils.setAutomationActive(this, false);
         AssistantTranslateController.resetAll();
         AssistantTranslateAccessibilityService.stopConnectedWork();
         updateStatuses();
+        stopButton.postDelayed(this::updateStatuses, 500L);
+        stopButton.postDelayed(this::updateStatuses, 1500L);
     }
 
     private void openOverlaySettings() {
